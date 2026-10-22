@@ -75,14 +75,14 @@ void broadcast(int from, char *str)
     for (int fd = 0; fd <= max_fd; fd++)
     {
         if (fd != from && fd != sockfd && FD_ISSET(fd, &all_set))
-            send(fd, str, strlen(str), 0);
+            send(fd, str, strlen(str), MSG_NOSIGNAL);
     }
 }
 
 int main(int ac, char **av) {
     int connfd, len, n, ret;
     struct sockaddr_in servaddr, cli;
-    char *line;
+    char *line, *out;
 
     if (ac != 2) {
         write(2, "Wrong number of arguments\n", 26);
@@ -146,13 +146,22 @@ int main(int ac, char **av) {
             client_buf[fd] = str_join(client_buf[fd], recv_buf);
             if (!client_buf[fd])
                 err();
+            out = NULL;
             while ((ret = extract_message(&client_buf[fd], &line)) != 0) {
                 if (ret < 0)
                     err();
                 sprintf(msg_buf, "client %d: ", client_id[fd]);
-                broadcast(fd, msg_buf);
-                broadcast(fd, line);
+                out = str_join(out, msg_buf);
+                if (!out)
+                    err();
+                out = str_join(out, line);
+                if (!out)
+                    err();
                 free(line);
+            }
+            if (out) {
+                broadcast(fd, out);
+                free(out);
             }
         }
     }
